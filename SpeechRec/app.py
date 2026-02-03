@@ -95,13 +95,6 @@ class OllamaSummarizer:
             print(f"⚠️  Ollama server not reachable or request failed at {self.host}: {e}. Falling back to SimpleSummarizer.")
             raise
 
-try:
-    from LectureLens.core.llm_summarizer import LLMSummarizer
-    llm_available = True
-except Exception:
-    LLMSummarizer = None
-    llm_available = False
-
 SUMMARIZER = None
 # Attempt to use Ollama Summarizer first
 try:
@@ -110,22 +103,7 @@ try:
     SUMMARIZER = ollama_summarizer_instance
     print(f"✅ Ollama Summarizer ({OLLAMA_MODEL}) configured successfully.")
 except Exception as e:
-    print(f"Ollama ({OLLAMA_MODEL}) not available or failed: {e}. Trying other summarizers.")
-
-if SUMMARIZER is None and llm_available:
-    try:
-        gemini_api_key = os.getenv('GEMINI_API_KEY')
-        if gemini_api_key:
-            gemini_summarizer_instance = LLMSummarizer(api_key=gemini_api_key)
-            gemini_summarizer_instance.start()
-            # Test Gemini API connection
-            test_response = gemini_summarizer_instance.model.generate_content("test")
-            SUMMARIZER = gemini_summarizer_instance
-            print("✅ Google Gemini API configured successfully.")
-        else:
-            print("⚠️  GEMINI_API_KEY not found. Skipping Google Gemini Summarizer.")
-    except Exception as e:
-        print(f"Google Gemini API failed: {e}. Trying SimpleSummarizer.")
+    print(f"Ollama ({OLLAMA_MODEL}) not available or failed: {e}. Falling back to SimpleSummarizer.")
 
 if SUMMARIZER is None:
     class SimpleSummarizer:
