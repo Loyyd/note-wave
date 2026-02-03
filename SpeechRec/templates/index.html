@@ -6,49 +6,19 @@
     <title>Live AI Transcriber</title>
     <style>
         :root {
-            --bg: #ffffff;
-            --text: #0b1b2b;
-            --muted: #6b7280;
-            --panel-bg: #ffffff;
-            --paper-bg: #f9f9f9;
-            --border: #e5e7eb;
-            --button-bg: #2563eb;
+            --bg: #1f1f1f;
+            --text: #e0e0e0;
+            --muted: #a0a0a0;
+            --panel-bg: #2d2d2d;
+            --paper-bg: #252525;
+            --border: #404040;
+            --button-bg: #4a4a4a;
             --button-text: #ffffff;
-            --shadow: 0 4px 6px rgba(2,6,23,0.08);
-            --summary-bg: #f3f3f3;
+            --shadow: 0 4px 6px rgba(0,0,0,0.3);
+            --summary-bg: #2d2d2d;
         }
 
-        /* Respect OS preference for dark mode when no explicit choice is made */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0b1220;
-                --text: #e6eef8;
-                --muted: #9aa6b2;
-                --panel-bg: #071029;
-                --paper-bg: #071429;
-                --border: #23303a;
-                --button-bg: #1e40af;
-                --button-text: #ffffff;
-                --shadow: 0 6px 18px rgba(0,0,0,0.6);
-                --summary-bg: #071229;
-            }
-        }
-
-        /* Explicit dark theme when toggled */
-        [data-theme="dark"] {
-            --bg: #0b1220;
-            --text: #e6eef8;
-            --muted: #9aa6b2;
-            --panel-bg: #071029;
-            --paper-bg: #071429;
-            --border: #23303a;
-            --button-bg: #1e40af;
-            --button-text: #ffffff;
-            --shadow: 0 6px 18px rgba(0,0,0,0.6);
-            --summary-bg: #071229;
-        }
-
-        body { font-family: sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: var(--bg); color: var(--text); transition: background 200ms, color 200ms; position: relative; }
+        body { font-family: sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: var(--bg); color: var(--text); position: relative; }
         
         /* two-column main */
         #main { display:flex; gap:20px; align-items:flex-start; }
@@ -76,20 +46,16 @@
         /* Finalized text */
         .final { color: var(--text); }
 
-        button { padding: 12px 24px; font-size: 16px; margin-right: 10px; cursor: pointer; background: var(--button-bg); color: var(--button-text); border: 1px solid rgba(0,0,0,0.08); border-radius:6px; }
+        button { padding: 12px 24px; font-size: 16px; margin-right: 10px; cursor: pointer; background: var(--button-bg); color: var(--button-text); border: 1px solid rgba(255,255,255,0.1); border-radius:6px; }
         button[disabled] { opacity: 0.6; cursor: not-allowed; }
         #status { margin-top: 10px; font-weight: bold; color: var(--muted); }
         #transcriptInput { background: transparent; color: var(--text); border: 1px solid var(--border); padding: 8px; border-radius: 6px; }
         #summary { margin-top:12px; min-height:80px; padding:10px; background: var(--summary-bg); border-radius:6px; color: var(--text); border: 1px solid var(--border); }
-
-        /* theme toggle button */
-        #themeToggle { position: absolute; top: 20px; right: 20px; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 16px; }
     </style>
 </head>
 <body><!-- in Title  Theme Toggl -->
 
     <h1>🎙️ nóta féin</h1>
-    <button id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
 
     <div id="main">
         <div id="left">
@@ -144,28 +110,6 @@
         // Check for browser support
         if (!('webkitSpeechRecognition' in window)) {
             alert("Your browser does not support the Web Speech API. Please use Google Chrome.");
-        }
-
-        // Theme handling (dark mode toggle)
-        const themeToggle = document.getElementById('themeToggle');
-        const applyTheme = (theme) => {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            if (themeToggle) themeToggle.innerText = theme === 'dark' ? '☀️' : '🌙';
-        };
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            applyTheme(savedTheme);
-        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            applyTheme('dark');
-        } else {
-            applyTheme('light');
-        }
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-                applyTheme(current === 'dark' ? 'light' : 'dark');
-            });
         }
 
         const recognition = new webkitSpeechRecognition();
