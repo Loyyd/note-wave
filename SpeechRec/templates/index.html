@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live AI Transcriber</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #0b1b2b;
+            --muted: #6b7280;
+            --panel-bg: #ffffff;
+            --paper-bg: #f9f9f9;
+            --border: #e5e7eb;
+            --button-bg: #2563eb;
+            --button-text: #ffffff;
+            --shadow: 0 4px 6px rgba(2,6,23,0.08);
+            --summary-bg: #f3f3f3;
+        }
+
+        /* Respect OS preference for dark mode when no explicit choice is made */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b1220;
+                --text: #e6eef8;
+                --muted: #9aa6b2;
+                --panel-bg: #071029;
+                --paper-bg: #071429;
+                --border: #23303a;
+                --button-bg: #1e40af;
+                --button-text: #ffffff;
+                --shadow: 0 6px 18px rgba(0,0,0,0.6);
+                --summary-bg: #071229;
+            }
+        }
+
+        /* Explicit dark theme when toggled */
+        [data-theme="dark"] {
+            --bg: #0b1220;
+            --text: #e6eef8;
+            --muted: #9aa6b2;
+            --panel-bg: #071029;
+            --paper-bg: #071429;
+            --border: #23303a;
+            --button-bg: #1e40af;
+            --button-text: #ffffff;
+            --shadow: 0 6px 18px rgba(0,0,0,0.6);
+            --summary-bg: #071229;
+        }
+
+        body { font-family: sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: var(--bg); color: var(--text); transition: background 200ms, color 200ms; position: relative; }
+        
+        /* two-column main */
+        #main { display:flex; gap:20px; align-items:flex-start; }
+        #left { flex:1; }
+        #right { width:340px; border:1px solid var(--border); padding:12px; border-radius:8px; background: var(--panel-bg); }
+
+        /* The container that looks like a sheet of paper */
+        #paper {
+            border: 1px solid var(--border);
+            min-height: 300px;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            font-size: 18px;
+            line-height: 1.6;
+            background-color: var(--paper-bg);
+            white-space: pre-wrap; /* Preserves formatting */
+            color: var(--text);
+        }
+
+        /* Interim text (text currently being spoken but not finalized) */
+        .interim { color: var(--muted); }
+        
+        /* Finalized text */
+        .final { color: var(--text); }
+
+        button { padding: 12px 24px; font-size: 16px; margin-right: 10px; cursor: pointer; background: var(--button-bg); color: var(--button-text); border: 1px solid rgba(0,0,0,0.08); border-radius:6px; }
+        button[disabled] { opacity: 0.6; cursor: not-allowed; }
+        #status { margin-top: 10px; font-weight: bold; color: var(--muted); }
+        #transcriptInput { background: transparent; color: var(--text); border: 1px solid var(--border); padding: 8px; border-radius: 6px; }
+        #summary { margin-top:12px; min-height:80px; padding:10px; background: var(--summary-bg); border-radius:6px; color: var(--text); border: 1px solid var(--border); }
+
+        /* theme toggle button */
+        #themeToggle { position: absolute; top: 20px; right: 20px; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    </style>
+</head>
+<body><!-- in Title and Theme Toggl -->
+
+    <h1>🎙️ nóta féin</h1>
+    <button id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+
+    <div id="main">
+        <div id="left">
+            <button id="startBtn">Start Speaking</button>
+            <button id="pauseBtn" disabled>Pause</button>
+            <button id="stopBtn" disabled>Stop & Save</button>
+            <p id="status">Ready...</p>
+
+            <div style="margin-top:12px;">
+                <label for="weekSelect">Week:</label>
+                <select id="weekSelect">
+                    <option>W1</option>
+                    <option>W2</option>
+                    <option>W3</option>
+                    <option>W4</option>
+                    <option>W5</option>
+                    <option>W6</option>
+                    <option>W7</option>
+                    <option>W8</option>
+                    <option>W9</option>
+                    <option>W10</option>
+                    <option>W11</option>
+                    <option>W12</option>
+                </select>
+
+                <label for="courseSelect" style="margin-left:12px;">Course:</label>
+                <select id="courseSelect">
+                    <option>Digital Innovation CSC1002</option>
+                    <option>Mathematics II CSC1026</option>
+                    <option>Networks &amp; Internet CSC1010</option>
+                    <option>Operating System CSC1011</option>
+                    <option>Programming II</option>
+                </select>
+            </div> 
+
+            <div id="paper"></div>
+        </div>
+
+        <div id="right">
+            <h2>🧠 AI Summarizer</h2>
+            <textarea id="transcriptInput" rows="8" style="width:100%; font-size:14px;" placeholder="Transcript will appear here..." readonly></textarea>
+            <div style="margin-top:8px;">
+                <button id="summarizeBtn">Summarize</button>
+                <button id="copySummaryBtn">Copy Summary</button>
+            </div>
+            <div id="summary" style="margin-top:12px; min-height:80px; padding:10px; border-radius:6px;"></div>
+            <p id="summStatus" style="color:#666; font-size:13px;"></p>
+        </div>
+    </div>
+
+    <script>
+        // Check for browser support
+        if (!('webkitSpeechRecognition' in window)) {
+            alert("Your browser does not support the Web Speech API. Please use Google Chrome.");
+        }
+
+        // Theme handling (dark mode toggle)
+        const themeToggle = document.getElementById('themeToggle');
+        const applyTheme = (theme) => {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            if (themeToggle) themeToggle.innerText = theme === 'dark' ? '☀️' : '🌙';
+        };
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+                applyTheme(current === 'dark' ? 'light' : 'dark');
+            });
+        }
+
+        const recognition = new webkitSpeechRecognition();
+        
+        // Configuration
+        recognition.continuous = true;    // Keep recording even if the user pauses
+        recognition.interimResults = true; // Show results while still speaking
+        recognition.lang = 'en-US';       // Set language
+
+        const paper = document.getElementById('paper');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+
+        const transcriptInput = document.getElementById('transcriptInput');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const summaryDiv = document.getElementById('summary');
+        const summStatus = document.getElementById('summStatus');
+        const copySummaryBtn = document.getElementById('copySummaryBtn');
+
+        const weekSelect = document.getElementById('weekSelect');
+        const courseSelect = document.getElementById('courseSelect');
+
+        let finalTranscript = ''; // Stores the fully recognized text
+        let isPaused = false;     // Track pause/resume state
+
+        // --- Event Handlers ---
+
+        recognition.onstart = () => {
+            status.innerText = "Listening... (Speak now)";
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            stopBtn.disabled = false;
+            pauseBtn.innerText = "Pause";
+            isPaused = false;
+        };
+
+        recognition.onerror = (event) => {
+            status.innerText = "Error: " + event.error;
+            console.error(event.error);
+        };
+
+        recognition.onend = () => {
+            // If the user didn't click stop (e.g. silence timeout), we might auto-restart
+            if (!isPaused && stopBtn.disabled === false) { 
+                recognition.start(); 
+            } else if (isPaused) {
+                status.innerText = "Paused.";
+                startBtn.disabled = true;
+            } else {
+                status.innerText = "Stopped.";
+            }
+        };
+
+        // The core logic: When the browser detects speech
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            // Update the visual display
+            paper.innerHTML = `<span class="final">${finalTranscript}</span><span class="interim">${interimTranscript}</span>`;
+            transcriptInput.value = finalTranscript;
+        };
+
+        // --- Button Actions ---
+
+        startBtn.onclick = () => {
+            finalTranscript = ''; // Reset text
+            paper.innerHTML = '';
+            transcriptInput.value = '';
+            summaryDiv.innerText = '';
+            isPaused = false;
+            pauseBtn.disabled = false;
+            pauseBtn.innerText = "Pause";
+            recognition.start();
+        };
+
+        pauseBtn.onclick = () => {
+            if (!isPaused) {
+                // Pause
+                isPaused = true;
+                recognition.stop();
+                pauseBtn.innerText = "Resume";
+                status.innerText = "Paused.";
+            } else {
+                // Resume
+                isPaused = false;
+                recognition.start();
+                pauseBtn.innerText = "Pause";
+                status.innerText = "Listening... (Speak now)";
+            }
+        };
+
+        stopBtn.onclick = async () => {
+            recognition.stop();
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            pauseBtn.innerText = "Pause";
+            isPaused = false;
+            stopBtn.disabled = true;
+            status.innerText = "Saving to server...";
+
+            // Prepare metadata
+            const week = weekSelect.value || 'W1';
+            const course = courseSelect.value || 'Course-1';
+
+            // Send the final text to Python
+            const response = await fetch('/save_transcript', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transcript: finalTranscript, week: week, course: course })
+            });
+
+            const result = await response.json();
+            if(result.status === 'success') {
+                if (result.folder) {
+                    status.innerText = `Saved to ${result.folder}/${result.file}`;
+                } else {
+                    status.innerText = `Saved as ${result.file}`;
+                }
+                transcriptInput.value = finalTranscript;
+            } else {
+                status.innerText = "Error saving file.";
+            }
+        };
+
+        summarizeBtn.onclick = async () => {
+            const textToSummarize = transcriptInput.value || finalTranscript;
+            if (!textToSummarize || textToSummarize.trim() === '') {
+                summStatus.innerText = 'No transcript available to summarize.';
+                return;
+            }
+            summarizeBtn.disabled = true;
+            summStatus.innerText = 'Summarizing...';
+            summaryDiv.innerText = '';
+
+            try {
+                const resp = await fetch('/summarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: textToSummarize })
+                });
+                const json = await resp.json();
+                if (json.status === 'success') {
+                    summaryDiv.innerText = json.summary;
+                    summStatus.innerText = 'Summary ready';
+                } else {
+                    summStatus.innerText = 'Error: ' + (json.message || 'summarization failed');
+                }
+            } catch (err) {
+                summStatus.innerText = 'Error contacting server';
+                console.error(err);
+            } finally {
+                summarizeBtn.disabled = false;
+            }
+        };
+
+        copySummaryBtn.onclick = () => {
+            const text = summaryDiv.innerText;
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                summStatus.innerText = 'Summary copied to clipboard';
+                setTimeout(()=> summStatus.innerText = '', 2000);
+            });
+        };
+    </script>
+</body>
+</html>
