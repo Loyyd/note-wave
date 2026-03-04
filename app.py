@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
 from flask import Flask, render_template, request, jsonify
-from .config import Config
-from .services.transcript_service import TranscriptService
-from .services.summarizer_service import get_summarizer
+from config import Config
+from services.transcript_service import TranscriptService
+from services.summarizer_service import get_summarizer
 
 app = Flask(__name__)
 app.config.from_object(Config)
